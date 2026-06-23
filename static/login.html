@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes">
     <script src="/static/js/sweetalert2.js"></script>
     <script src="/static/js/fp.min.js"></script>
     <!-- CAP Worker Js Replace -->
@@ -17,21 +17,24 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             min-height: 100vh;
+            min-height: 100dvh;
             display: flex;
-            align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: clamp(12px, 3vw, 20px);
             position: relative;
-            overflow: hidden;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
         }
 
         /* 背景图容器 */
         .background-container {
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
+            height: 100svh;
             z-index: -2;
         }
 
@@ -70,82 +73,87 @@
             background: linear-gradient(135deg, rgba(102, 126, 234, 0.8) 0%, rgba(118, 75, 162, 0.8) 100%);
             z-index: -1;
         }
-        
-        .login-container {
-        position: relative;          /* 让 ::before / ::after 能绝对定位 */
-        width: 100%;
-        max-width: 400px;
-        padding: 40px;
-        border-radius: 12px;
-        overflow: hidden;            /* 保证圆角裁切模糊区域 */
 
-        /* 亚克力核心 */
-        -webkit-backdrop-filter: blur(20px) saturate(180%);
-        backdrop-filter: blur(20px) saturate(180%);
-        background-color: rgba(255, 255, 255, 0.55);   /* 上层亮面 */
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+        .login-container {
+            position: relative;
+            width: 100%;
+            max-width: 420px;
+            padding: clamp(20px, 5vw, 40px);
+            border-radius: 12px;
+            overflow: hidden;
+            /* margin:auto 实现安全居中 — 空间足够时居中，溢出时可滚到顶部 */
+            margin: auto 0;
+
+            /* 亚克力核心 */
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            backdrop-filter: blur(20px) saturate(180%);
+            background-color: rgba(255, 255, 255, 0.55);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
         }
 
-        /* 3. 两层额外渐变：底层暗面 + 上层亮面 */
+        /* 两层额外渐变：底层暗面 + 上层亮面 */
         .login-container::before,
         .login-container::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-        border-radius: inherit;
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            border-radius: inherit;
         }
         .login-container::before {
-        /* 暗面：左上到右下的微弱阴影 */
-        background: linear-gradient(135deg,
-                    rgba(0, 0, 0, 0.03) 0%,
-                    rgba(0, 0, 0, 0.08) 100%);
+            background: linear-gradient(135deg,
+                        rgba(0, 0, 0, 0.03) 0%,
+                        rgba(0, 0, 0, 0.08) 100%);
         }
         .login-container::after {
-        /* 亮面：右上到左下的高光 */
-        background: linear-gradient(45deg,
-                    rgba(255, 255, 255, 0.15) 0%,
-                    rgba(255, 255, 255, 0.05) 100%);
+            background: linear-gradient(45deg,
+                        rgba(255, 255, 255, 0.15) 0%,
+                        rgba(255, 255, 255, 0.05) 100%);
         }
 
+        /* 移除 mix-blend-mode:overlay — 在某些小屏幕浏览器上会导致渲染问题 */
         .login-container {
-            mix-blend-mode: overlay;
+            mix-blend-mode: normal;
         }
 
         .login-header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: clamp(16px, 3vh, 30px);
         }
 
         .login-header h1 {
             color: #333;
-            font-size: 24px;
-            margin-bottom: 10px;
+            font-size: clamp(18px, 4vw, 24px);
+            margin-bottom: clamp(4px, 1vh, 10px);
         }
 
         .login-header p {
             color: #666;
-            font-size: 14px;
+            font-size: clamp(12px, 2.5vw, 14px);
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: clamp(12px, 2.5vh, 20px);
         }
 
         .form-group label {
             display: block;
-            margin-bottom: 5px;
+            margin-bottom: clamp(3px, 0.8vh, 5px);
             color: #333;
             font-weight: 500;
+            font-size: clamp(13px, 2.8vw, 15px);
         }
 
         .form-group input {
             width: 100%;
-            padding: 12px;
+            padding: clamp(10px, 2vw, 12px);
             border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 16px;
+            border-radius: 6px;
+            font-size: clamp(14px, 3vw, 16px);
+            /* 确保 iOS 不自动缩放输入框 */
+            font-size: max(16px, clamp(14px, 3vw, 16px));
             transition: border-color 0.3s;
+            background: rgba(255,255,255,0.7);
         }
 
         .form-group input:focus {
@@ -159,8 +167,8 @@
 
         .error-message {
             color: #e74c3c;
-            font-size: 14px;
-            margin-top: 5px;
+            font-size: clamp(11px, 2.2vw, 14px);
+            margin-top: 4px;
             display: none;
         }
 
@@ -170,14 +178,21 @@
 
         .login-button {
             width: 100%;
-            padding: 12px;
+            padding: clamp(10px, 2vw, 12px);
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            border-radius: 5px;
-            font-size: 16px;
+            border-radius: 6px;
+            font-size: clamp(15px, 3vw, 16px);
+            font-weight: 600;
             cursor: pointer;
-            transition: opacity 0.3s;
+            transition: opacity 0.3s, transform 0.1s;
+            min-height: clamp(40px, 7vh, 48px);
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .login-button:active {
+            transform: scale(0.97);
         }
 
         .login-button:hover:not(:disabled) {
@@ -192,7 +207,7 @@
         .loading {
             display: none;
             text-align: center;
-            margin-top: 20px;
+            margin-top: clamp(12px, 2vh, 20px);
         }
 
         .loading.active {
@@ -203,10 +218,10 @@
             border: 3px solid #f3f3f3;
             border-top: 3px solid #667eea;
             border-radius: 50%;
-            width: 30px;
-            height: 30px;
+            width: clamp(24px, 5vw, 30px);
+            height: clamp(24px, 5vw, 30px);
             animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
+            margin: 0 auto clamp(6px, 1vh, 10px);
         }
 
         @keyframes spin {
@@ -216,13 +231,118 @@
 
         .footer {
             text-align: center;
-            margin-top: 20px;
+            margin-top: clamp(12px, 2vh, 20px);
             color: #666;
-            font-size: 12px;
+            font-size: clamp(10px, 2vw, 12px);
+            line-height: 1.5;
         }
 
         cap-widget {
             --cap-widget-width: 100%;
+        }
+
+        /* ========== 极小屏幕 (< 320 CSS px) ========== */
+        @media (max-width: 319px) {
+            .login-container {
+                padding: 14px;
+                border-radius: 8px;
+            }
+            .login-header h1 {
+                font-size: 16px;
+            }
+            .form-group input {
+                padding: 8px 10px;
+                font-size: 16px; /* 防止 iOS 缩放 */
+            }
+            .login-button {
+                min-height: 36px;
+                font-size: 14px;
+                padding: 8px;
+            }
+        }
+
+        /* ========== 横屏小屏幕 ========== */
+        @media (max-width: 600px) and (orientation: landscape) {
+            body {
+                padding: 8px;
+            }
+            .login-container {
+                padding: 16px 20px;
+                max-width: 500px;
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 8px 20px;
+            }
+            .login-header {
+                flex: 1 1 100%;
+                margin-bottom: 8px;
+            }
+            .login-header h1 {
+                font-size: clamp(16px, 3vw, 20px);
+                margin-bottom: 2px;
+            }
+            .form-group {
+                flex: 1 1 40%;
+                margin-bottom: 8px;
+            }
+            .login-button {
+                flex: 0 0 auto;
+                min-width: 100px;
+                margin-top: 0;
+            }
+            .footer {
+                flex: 1 1 100%;
+                margin-top: 6px;
+            }
+        }
+
+        /* ========== 大屏幕优化 (> 768 CSS px) ========== */
+        @media (min-width: 769px) {
+            .login-container {
+                padding: 40px;
+            }
+        }
+
+        /* ========== 矮屏 (< 400 CSS px 高) ========== */
+        @media (max-height: 399px) {
+            body {
+                padding: 6px 10px;
+            }
+            .login-container {
+                padding: 10px 14px;
+                border-radius: 8px;
+            }
+            .login-header {
+                margin-bottom: 6px;
+            }
+            .login-header h1 {
+                font-size: clamp(14px, 3vw, 18px);
+                margin-bottom: 2px;
+            }
+            .form-group {
+                margin-bottom: 6px;
+            }
+            .form-group label {
+                font-size: 12px;
+                margin-bottom: 2px;
+            }
+            .form-group input {
+                padding: 6px 10px;
+                font-size: 16px;
+            }
+            .login-button {
+                min-height: 32px;
+                font-size: 14px;
+                padding: 6px;
+            }
+            .footer {
+                margin-top: 6px;
+                font-size: 10px;
+            }
+            .loading {
+                margin-top: 6px;
+            }
         }
     </style>
 </head>
@@ -232,35 +352,35 @@
         <div class="background-image portrait"></div>
         <div class="background-overlay"></div>
     </div>
-    
+
     <div class="login-container">
         <div class="login-header">
             <h1>Mai QRCode Getter</h1>
         </div>
-        
+
         <form id="loginForm">
             <div class="form-group">
                 <label for="username">用户名</label>
-                <input type="text" id="username" name="username" required autocomplete="username">
+                <input type="text" id="username" name="username" required autocomplete="username" inputmode="text" enterkeyhint="next">
                 <div class="error-message">请输入用户名</div>
             </div>
-            
+
             <div class="form-group">
                 <label for="password">密码</label>
-                <input type="password" id="password" name="password" required autocomplete="current-password">
+                <input type="password" id="password" name="password" required autocomplete="current-password" inputmode="text" enterkeyhint="go">
                 <div class="error-message">请输入密码</div>
             </div>
 
             <!-- cap-widget -->
-            
+
             <button type="submit" class="login-button" id="loginButton">登录</button>
-            
+
             <div class="loading">
                 <div class="spinner"></div>
                 <p>正在登录...</p>
             </div>
         </form>
-        
+
         <div class="footer">
             <p>Mai QRCode Getter v1.0</p>
             <p>Background Image by <a href="https://www.pixiv.net/users/27236214">青葉もち</a></p>
@@ -299,34 +419,34 @@
 
         document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            
+
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value.trim();
             const formGroups = document.querySelectorAll('.form-group');
             const loading = document.querySelector('.loading');
             const loginButton = document.querySelector('.login-button');
-            
+
             // 清除之前的错误状态
             formGroups.forEach(group => group.classList.remove('error'));
-            
+
             let hasError = false;
-            
+
             if (!username) {
                 document.querySelector('.form-group:nth-child(1)').classList.add('error');
                 hasError = true;
             }
-            
+
             if (!password) {
                 document.querySelector('.form-group:nth-child(2)').classList.add('error');
                 hasError = true;
             }
-            
+
             if (hasError) return;
-            
+
             // 显示加载状态
             loading.classList.add('active');
             loginButton.disabled = true;
-            
+
             try {
                 const formData = new FormData();
                 formData.append('username', username);
@@ -335,7 +455,7 @@
                 if (cap_token) {
                     formData.append('token', cap_token);
                 }
-                
+
                 const response = await fetch(window.location.pathname, {
                     method: 'POST',
                     body: formData,
@@ -344,9 +464,9 @@
                         'Accept': 'application/json'
                     }
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     loginButton.innerText = '登录成功，正在跳转...';
                     setTimeout(() => {
@@ -394,7 +514,7 @@
                 }
             }
         });
-        
+
         // 回车键提交
         document.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
@@ -402,14 +522,14 @@
             }
         });
     </script>
-    
+
     <script>
         // 背景图切换功能
         function updateBackgroundImage() {
             const landscapeImg = document.querySelector('.background-image.landscape');
             const portraitImg = document.querySelector('.background-image.portrait');
             const windowRatio = window.innerWidth / window.innerHeight;
-            
+
             // 如果宽高比大于1.2，认为是横屏，否则是竖屏
             if (windowRatio > 1.2) {
                 landscapeImg.classList.add('active');
@@ -419,13 +539,13 @@
                 landscapeImg.classList.remove('active');
             }
         }
-        
+
         // 初始化背景图
         updateBackgroundImage();
-        
+
         // 监听窗口大小变化
         window.addEventListener('resize', updateBackgroundImage);
-        
+
         // 监听设备方向变化（移动设备）
         window.addEventListener('orientationchange', () => {
             setTimeout(updateBackgroundImage, 100);

@@ -655,25 +655,8 @@ async def handle(_):
 
 
 async def htmlPage(_: BaseRequest):
-    """主页 — 纯二维码展示页"""
-    global on_active
-    try:
-        res = await main()
-        on_active = 0
-        if res:
-            completeHtml = qrcodeHtml.replace("{maid_code}", res[0]).replace("{exp_time}", res[1]).replace("{spend_time}",
-                                                                                                           str(res[2]))
-            return web.Response(text=completeHtml, content_type='text/html')
-        return web.Response(text='Failed to get QR code', status=500)
-    except Exception as e:
-        on_active = 0
-        tb_str = traceback.format_exc()
-        err_str = f"{e.__class__.__name__}: {e}"
-        print(tb_str)
-        with open(STATIC_DIR / "traceback.html", "r", encoding="utf-8") as file:
-            html = file.read()
-        completeHtml = html.replace("{{ERROR_MESSAGE}}", err_str).replace("{{TRACEBACK}}", tb_str)
-        return web.Response(text=completeHtml, content_type='text/html')
+    """主页 — 纯二维码展示页（前端通过 AJAX 调用 /maimai 获取二维码）"""
+    return web.Response(text=qrcodeHtml, content_type='text/html')
 
 
 async def handlePostRoot(_: BaseRequest):
@@ -685,19 +668,8 @@ async def handlePostRoot(_: BaseRequest):
 
 
 async def QRCodePage(_: BaseRequest):
-    """二维码页面"""
-    global on_active
-    try:
-        res = await main()
-        on_active = 0
-        if res:
-            completeHtml = qrcodeHtml.replace("{maid_code}", res[0]).replace("{exp_time}", res[1]).replace("{spend_time}",
-                                                                                                           str(res[2]))
-            return web.Response(text=completeHtml, content_type='text/html')
-        return web.Response(text='Failed to get QR code', status=500)
-    except Exception as e:
-        on_active = 0
-        return web.Response(text=f"{e.__class__.__name__}: {e}", status=500)
+    """二维码页面（前端通过 AJAX 调用 /maimai 获取二维码）"""
+    return web.Response(text=qrcodeHtml, content_type='text/html')
     
 
 async def handle_204(_: BaseRequest):
