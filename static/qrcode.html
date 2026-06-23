@@ -38,20 +38,12 @@
 
 <script src="/static/js/qrcode.min.js"></script>
 <script>
-const url   = "{final_url}";
-const maid  = "SGWC" + (url.match(/[?&]maid=([^&]+)/) || [])[1];
-if(maid){
-    QRCode.toCanvas(document.getElementById('qrcode'), maid, {
-        width : Math.min(window.innerWidth, window.innerHeight) * 0.8,
-        margin: 2,
-        errorCorrectionLevel: 'L'
-    });
-}else{
-    document.getElementById('qrText').textContent = '无法生成二维码';
-    document.getElementById('qrText1').display = 'none';
-    document.getElementById('qrText2').display = 'none';
-    document.getElementById('qrText3').display = 'none';
-}
+const maid  = "SGWC{maid_code}";
+QRCode.toCanvas(document.getElementById('qrcode'), maid, {
+    width : Math.min(window.innerWidth, window.innerHeight) * 0.8,
+    margin: 2,
+    errorCorrectionLevel: 'L'
+});
 </script>
 </body>
 </html>

@@ -13,8 +13,7 @@ import traceback
 from ctypes import wintypes
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Literal, Dict, Tuple
-from urllib.parse import quote_plus
+from typing import Dict, Tuple
 import time
 import threading
 import uiautomation as auto
@@ -28,64 +27,29 @@ from aiohttp.web_request import BaseRequest
 
 from mitmproxy import http, options, master, addons
 
-entryPoint = "/login"  # 登录页面入口，建议修改以防非法登录
-loginUserName = "admin"  # 登录用户名
-loginPassword = "maimaidx"  # 登录密码
-port = 8080  # 监听端口
-proxyPort = 8081
-waitTime = 10  # 等待时间
-minimize_after_success = 0  # 获取到二维码后最小化窗口，0为不启用，1为启用
-dxpass_url = "https://up.turou.fun/"  # 用于显示DXPass的URL
-capjs_endpoint = ""  # 用于显示Cap验证码的API地址
-mode: Literal["normal", "marked", "demo", "web_only"] = "normal"  # 运行模式，normal为正常模式，marked会隐藏敏感信息，demo会替换敏感信息，web_only只显示DXPass页面
-certfile = "server.crt"  # 证书文件名
-keyfile = "server.key"  # 密钥文件名
-# 以上配置会在创建config.ini后失效
-
 config = configparser.ConfigParser()
+
 if not Path("./config.ini").exists():
-    with open("config.ini", "w", encoding="utf-8") as f:
-        f.write("[Default]\n"
-                "# 登录页面入口，建议修改以防非法登录\n"
-                f"entryPoint = {entryPoint}\n"
-                "# 登录用户名\n"
-                f"loginUserName = {loginUserName}\n"
-                "# 登录密码\n"
-                f"loginPassword = {loginPassword}\n"
-                "# 监听端口 (1-65535)\n"
-                f"port = {port}\n"
-                "# 代理端口 不可以和监听端口相同！ (1-65535)\n"
-                f"proxyPort = {proxyPort}\n"
-                "# 等待时间 (秒)，对于较好的电脑可以设置为5秒\n"
-                f"waitTime = {waitTime}\n"
-                "# 获取到二维码后最小化窗口，0为不启用，1为启用\n"
-                f"minimize_after_success = {minimize_after_success}\n"
-                "# 用于显示DXPass的URL\n"
-                f"dxpass_url = {dxpass_url}\n"
-                "# 用于显示CapJS验证码的API地址\n"
-                f"capjs_endpoint = {capjs_endpoint}\n"
-                "# 运行模式，normal为正常模式，marked会隐藏敏感信息，demo会替换敏感信息，web_only只显示DXPass页面\n"
-                f"mode = {mode}\n"
-                "# 证书文件名\n"
-                f"certfile = {certfile}\n"
-                "# 密钥文件名\n"
-                f"keyfile = {keyfile}\n")
-        print("Created default config.ini")
+    print("=" * 60)
+    print("  错误: 未找到 config.ini 配置文件!")
+    print("  请复制 config.example.ini 为 config.ini 并修改配置项")
+    print("=" * 60)
+    time.sleep(2)
+    sys.exit(1)
 
 config.read("config.ini", encoding="utf-8")
 
-entryPoint = config.get("Default", "entryPoint", fallback=entryPoint)
-loginUserName = config.get("Default", "loginUserName", fallback=loginUserName)
-loginPassword = config.get("Default", "loginPassword", fallback=loginPassword)
-port = config.getint("Default", "port", fallback=port)
-proxyPort = config.getint("Default", "proxyPort", fallback=proxyPort)
-waitTime = config.getint("Default", "waitTime", fallback=waitTime)
-minimize_after_success = config.getint("Default", "minimize_after_success", fallback=minimize_after_success)
-dxpass_url = config.get("Default", "dxpass_url", fallback=dxpass_url)
-capjs_endpoint = config.get("Default", "capjs_endpoint", fallback=capjs_endpoint)
-mode = config.get("Default", "mode", fallback=mode)  # NOQA
-certfile = config.get("Default", "certfile", fallback=certfile)
-keyfile = config.get("Default", "keyfile", fallback=keyfile)
+entryPoint = config.get("Default", "entryPoint", fallback="/login")
+loginUserName = config.get("Default", "loginUserName", fallback="admin")
+loginPassword = config.get("Default", "loginPassword", fallback="maimaidx")
+port = config.getint("Default", "port", fallback=8080)
+proxyPort = config.getint("Default", "proxyPort", fallback=8081)
+waitTime = config.getint("Default", "waitTime", fallback=15)
+minimize_after_success = config.getint("Default", "minimize_after_success", fallback=0)
+capjs_endpoint = config.get("Default", "capjs_endpoint", fallback="")
+mode = config.get("Default", "mode", fallback="normal")  # NOQA
+certfile = config.get("Default", "certfile", fallback="server.crt")
+keyfile = config.get("Default", "keyfile", fallback="server.key")
 
 if hasattr(sys, '_nuitka_binary_dir'):
     PROJECT_ROOT = Path(sys._nuitka_binary_dir)
@@ -544,6 +508,34 @@ def convertImageL(comp: auto.Control) -> Image:
     return screenshot
 
 
+def _perform_window_click_sync(hwnd: int) -> None:
+    """在后台线程中执行微信窗口激活和按钮点击操作，避免阻塞事件循环"""
+    # 还原最小化的窗口
+    if user32.IsIconic(hwnd):
+        user32.ShowWindow(hwnd, 9)
+    # 激活微信窗口至前台（最多尝试 1 秒）
+    t = time.time()
+    while user32.GetForegroundWindow() != hwnd and time.time() - t < 1:
+        user32.ShowWindow(hwnd, 5)
+        ctypes.windll.user32.SetWindowPos(hwnd, -1, 0, 0, 0, 0, 2 | 1)
+        user32.SetForegroundWindow(hwnd)
+        time.sleep(0.05)
+    # 保存当前鼠标位置，执行点击后恢复
+    pt = wintypes.POINT()
+    user32.GetCursorPos(ctypes.byref(pt))
+    rx, ry = pt.x, pt.y
+    # 通过 UI Automation 查找并点击"玩家二维码"按钮
+    maimaiWindow = auto.WindowControl(searchDepth=1, Name="舞萌丨中二")
+    btn = maimaiWindow.ButtonControl(Name="玩家二维码")
+    if btn.Exists(0, 0):
+        btn.Click(simulateMove=False, waitTime=0)
+        print('Clicked!')
+    user32.SetCursorPos(rx, ry)
+    # 将微信窗口设为非置顶，归还焦点给之前的窗口
+    ctypes.windll.user32.SetWindowPos(hwnd, -2, 0, 0, 0, 0,
+                                      0x0001 | 0x0002 | 0x0020)
+
+
 async def main():
     global on_active, CACHE_QRCODE
     if mode == "web_only":
@@ -554,23 +546,20 @@ async def main():
         dt = now + timedelta(minutes=10)
         expTimeStr = dt.strftime("%m/%d %H:%M")
         return code, expTimeStr, round(random.uniform(2.0, 4.6), 2)
+    print(f"[QR] 开始获取二维码... (超时上限 {waitTime}s)")
     handleTime = time.time()
     last_code = None
     if on_active and time.time() - on_active < waitTime + 10:
-        return RuntimeError(f"不能在{waitTime + 10}秒内连续获取二维码")
+        elapsed = time.time() - on_active
+        msg = f"[QR] 并发限制: 距上次获取仅 {elapsed:.1f}s，需等待 {waitTime + 10}s 后方可重试"
+        print(msg)
+        raise RuntimeError(msg)
     on_active = handleTime
     hwnd = find_window_handle("舞萌丨中二")
     if not hwnd:
         on_active = 0
-        raise RuntimeError("未找到 舞萌丨中二 窗口句柄")
+        raise RuntimeError("[QR] 错误: 未找到「舞萌丨中二」窗口，请确认公众号窗口已打开")
     nowFocusWindow = auto.GetForegroundControl()
-    if user32.IsIconic(hwnd):
-        user32.ShowWindow(hwnd, 9)
-    maimaiWindow = auto.WindowControl(searchDepth=1, Name="舞萌丨中二")
-    if not maimaiWindow.Exists(0, 0):
-        on_active = 0
-        raise RuntimeError("无法获取 舞萌丨中二 窗口元素")
-    btn = maimaiWindow.ButtonControl(Name="玩家二维码")
     reqTime = datetime.now()
     year = str(reqTime.year - 2000).zfill(2)
     month = str(reqTime.month).zfill(2)
@@ -578,6 +567,7 @@ async def main():
     hour = str(reqTime.hour).zfill(2)
     minute = str(reqTime.minute).zfill(2)
     second = str(reqTime.second).zfill(2)
+    # 检查缓存中是否已有之前的二维码
     if CACHE_QRCODE:
         lqr = Image.open(io.BytesIO(CACHE_QRCODE))
         if is_valid_qrcode(lqr):
@@ -587,22 +577,13 @@ async def main():
                     f"Last exist QR code: MAID{year}{month}{day}{hour}{minute}{second}{hashlib.sha256(last_code.encode()).hexdigest().upper()}")
             else:
                 print(f"Last QR code: {last_code if mode != 'marked' else mark_str(last_code)}")
-    if btn.Exists(0, 0) and mode != "demo":
+    # 将阻塞的窗口操作放到后台线程执行，避免卡住事件循环和任务栏
+    if mode != "demo":
+        loop = asyncio.get_event_loop()
         try:
-            t = time.time()
-            while user32.GetForegroundWindow() != hwnd and time.time() - t < 1:
-                user32.ShowWindow(hwnd, 5)
-                ctypes.windll.user32.SetWindowPos(hwnd, -1, 0, 0, 0, 0, 2 | 1)
-                user32.SetForegroundWindow(hwnd)
-            pt = wintypes.POINT()
-            user32.GetCursorPos(ctypes.byref(pt))
-            rx, ry = pt.x, pt.y
-            btn.Click(simulateMove=False, waitTime=0)
-            user32.SetCursorPos(rx, ry)
-            print('Clicked!')
+            await loop.run_in_executor(None, _perform_window_click_sync, hwnd)
         finally:
-            ctypes.windll.user32.SetWindowPos(hwnd, -2, 0, 0, 0, 0,
-                                              0x0001 | 0x0002 | 0x0020)
+            # 操作完成后归还焦点
             if nowFocusWindow is not None:
                 nowFocusWindow.SetFocus()
     now = time.time()
@@ -621,7 +602,11 @@ async def main():
         await asyncio.sleep(0.1)
     else:
         on_active = 0
-        raise Exception(f"Failed to locate QR code in {waitTime} seconds.")
+        raise Exception(
+            f"[QR] 获取超时: 在 {waitTime}s 内未从代理截获新二维码。"
+            f"请确认: 1) 微信代理已配置为 127.0.0.1:{proxyPort} "
+            f"2) 公众号窗口未关闭 3) 网络正常(可尝试增大 config.ini 中的 waitTime)"
+        )
     if vqr:
         CACHE_QRCODE = b""
         code = decode(vqr)[0].data.decode('utf-8')[4:]
@@ -632,14 +617,13 @@ async def main():
         dt += timedelta(minutes=10)
         expTimeStr = dt.strftime("%m/%d %H:%M")
 
-        url = f"{dxpass_url}?maid={code}&time={quote_plus(expTimeStr)}"
-        print(f"URL: {url if mode != 'marked' else mark_str(url)}")
         sptTime = round(time.time() - handleTime, 2)
         print(f"Completed in {sptTime:.2f} s.")
         on_active = 0
         return code, expTimeStr, sptTime
     else:
         CACHE_QRCODE = b""
+        maimaiWindow = auto.WindowControl(searchDepth=1, Name="舞萌丨中二")
         maimaiWindow.SetTopmost(False)
         if mode == "demo":
             code = f"MAID{year}{month}{day}{hour}{minute}{second}" + hashlib.sha256(
@@ -647,13 +631,11 @@ async def main():
             print(f"Code: {code}")
             expTimeStr = (reqTime + timedelta(minutes=10)).strftime("%m/%d %H:%M")
 
-            url = f"{dxpass_url}?maid={code}&time={quote_plus(expTimeStr)}"
-            print(f"URL: {url}")
             sptTime = round(time.time() - handleTime, 2)
             print(f"Completed in {sptTime:.2f} s.")
             on_active = 0
             return code, expTimeStr, sptTime
-        print("窗格定位失败")
+        print("[QR] 错误: 消息列表为空，未能找到二维码消息元素")
         if nowFocusWindow is not None:
             nowFocusWindow.SetFocus()
         on_active = 0
@@ -665,7 +647,7 @@ async def handle(_):
         res = await main()
         if res:
             return web.json_response({'success': True, 'maid': res[0], 'time': res[1], 'spend': res[2]})
-        return web.json_response({'success': False, 'error': 'Failed to get QR code'}, status=500)
+        return web.json_response({'success': False, 'error': '未能获取二维码，请查看控制台日志了解详情'}, status=500)
     except Exception as e:
         tb_str = traceback.format_exc()
         err_str = f"{e.__class__.__name__}: {e}"
@@ -673,17 +655,14 @@ async def handle(_):
 
 
 async def htmlPage(_: BaseRequest):
-    """主页"""
+    """主页 — 纯二维码展示页"""
     global on_active
     try:
         res = await main()
         on_active = 0
         if res:
-            url = f"{dxpass_url}?maid={res[0]}&time={quote_plus(res[1])}"
-            with open(STATIC_DIR / "main.html", "r", encoding="utf-8") as file:
-                html = file.read()
-            completeHtml = html.replace("{final_url}", url).replace("{exp_time}", res[1]).replace("{spend_time}",
-                                                                                                  str(res[2]))
+            completeHtml = qrcodeHtml.replace("{maid_code}", res[0]).replace("{exp_time}", res[1]).replace("{spend_time}",
+                                                                                                           str(res[2]))
             return web.Response(text=completeHtml, content_type='text/html')
         return web.Response(text='Failed to get QR code', status=500)
     except Exception as e:
@@ -712,9 +691,8 @@ async def QRCodePage(_: BaseRequest):
         res = await main()
         on_active = 0
         if res:
-            url = f"{dxpass_url}?maid={res[0]}"
-            completeHtml = qrcodeHtml.replace("{final_url}", url).replace("{exp_time}", res[1]).replace("{spend_time}",
-                                                                                                        str(res[2]))
+            completeHtml = qrcodeHtml.replace("{maid_code}", res[0]).replace("{exp_time}", res[1]).replace("{spend_time}",
+                                                                                                           str(res[2]))
             return web.Response(text=completeHtml, content_type='text/html')
         return web.Response(text='Failed to get QR code', status=500)
     except Exception as e:
@@ -797,11 +775,15 @@ class WXPictureCapture:
     def response(flow: http.HTTPFlow) -> None:
         global CACHE_QRCODE
         request_url = flow.request.pretty_url
-        if "/mmecoa_png" in request_url:
+        # 匹配微信二维码图片 URL：旧格式 /mmecoa_png 和新格式 /sz_mmecoa_png 都支持
+        if "mmecoa_png" in request_url:
             if flow.response:
-                response = flow.response.content
-                if response:
-                    CACHE_QRCODE = response
+                content = flow.response.content
+                if content and len(content) > 200:
+                    print(f"[Proxy] ✅ 截获二维码图片! 大小: {len(content)} bytes")
+                    CACHE_QRCODE = content
+                else:
+                    print(f"[Proxy] ⚠️ 响应体过小({len(content) if content else 0} bytes)，已忽略")
 
 
 async def start_proxy_server():
