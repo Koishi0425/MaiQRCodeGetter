@@ -160,6 +160,22 @@ python main_proxy.py
 
 ---
 
+## 致谢
+
+本项目 Fork 自 [MeiHuaGuangShuo/UsagiPassQRCodeGetter](https://github.com/MeiHuaGuangShuo/UsagiPassQRCodeGetter)。
+
+主要改动：
+
+- **特化 / 聚焦** — 专注于舞萌公众号二维码获取与分发，移除了原项目的 UsagiPass/dxpass UI 嵌套展示功能，使项目更纯粹、更易维护。
+- **前端重构** — 将二维码展示页改为单页面应用（SPA），加载 / 成功 / 失败三态统一在同一简洁界面；登录页去除了动漫背景和第三方弹窗库，改为纯 CSS 内联提示。
+- **PWA 支持** — 添加 Service Worker 缓存策略和 Web App Manifest，支持安装到桌面离线使用。
+- **响应式适配** — 全面使用 `clamp()` 弹性单位和多级媒体查询，适配 160px 智能手表到 4K 显示器。
+- **交互增强** — 加载态随机知识语录、单击二维码全屏放大、双击刷新。
+
+感谢原作者 [MeiHuaGuangShuo](https://github.com/MeiHuaGuangShuo) 提供的优秀基础架构。
+
+---
+
 ## License
 
 MIT
