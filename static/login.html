@@ -3,553 +3,341 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes">
-    <script src="/static/js/sweetalert2.js"></script>
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/static/icons/icon-192.svg">
     <script src="/static/js/fp.min.js"></script>
     <!-- CAP Worker Js Replace -->
-    <title>登录 - Mai QRCode Getter</title>
+    <title>登录 - MaiQR</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+        html,body{height:100%;height:100dvh;overflow:hidden}
+        body{
+            font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+            background:#d3d3d3;
+            color:#333;
         }
+        #container{
+            display:flex;
+            justify-content:center;
+            width:100%;
+            height:100%;
+            height:100dvh;
+            padding:clamp(8px,2vw,24px);
+            overflow-y:auto;
+            overflow-x:hidden;
+            -webkit-overflow-scrolling:touch;
+        }
+        .card{
+            display:flex;
+            flex-direction:column;
+            width:100%;
+            max-width:400px;
+            gap:clamp(12px,2.5vh,24px);
+            margin:auto 0;
+            padding:clamp(20px,5vw,36px);
+            background:#fff;
+            border-radius:12px;
+            box-shadow:0 2px 16px rgba(0,0,0,0.08);
+        }
+        /* 标题 */
+        .card-header{text-align:center}
+        .card-header h1{
+            font-size:clamp(18px,4vw,24px);
+            font-weight:700;
+            color:#333;
+        }
+        .card-header p{
+            font-size:clamp(12px,2.5vw,14px);
+            color:#888;
+            margin-top:clamp(2px,0.5vh,6px);
+        }
+        /* 表单 */
+        .form-group{margin-bottom:clamp(10px,2vh,18px)}
+        .form-group label{
+            display:block;
+            margin-bottom:clamp(3px,0.6vh,6px);
+            font-size:clamp(13px,2.8vw,15px);
+            font-weight:500;
+            color:#444;
+        }
+        .form-group input{
+            width:100%;
+            padding:clamp(10px,2vw,12px);
+            border:1px solid #ddd;
+            border-radius:8px;
+            font-size:max(16px,clamp(14px,3vw,16px));
+            color:#333;
+            background:#fafafa;
+            transition:border-color 0.2s,box-shadow 0.2s;
+        }
+        .form-group input:focus{
+            outline:none;
+            border-color:#667eea;
+            box-shadow:0 0 0 3px rgba(102,126,234,0.15);
+            background:#fff;
+        }
+        .form-group.error input{
+            border-color:#e74c3c;
+            box-shadow:0 0 0 3px rgba(231,76,60,0.1);
+        }
+        .field-error{
+            display:none;
+            color:#e74c3c;
+            font-size:clamp(11px,2.2vw,13px);
+            margin-top:4px;
+        }
+        .form-group.error .field-error{display:block}
+        /* 全局错误横幅 */
+        .alert{
+            display:none;
+            padding:clamp(8px,1.5vw,12px);
+            border-radius:8px;
+            font-size:clamp(12px,2.5vw,14px);
+            text-align:center;
+            line-height:1.4;
+        }
+        .alert.show{display:block}
+        .alert-error{background:#fff0f0;color:#c62828;border:1px solid #ffcdd2}
+        /* 登录按钮 */
+        .btn-login{
+            width:100%;
+            padding:clamp(10px,2vw,12px);
+            background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+            color:#fff;
+            border:none;
+            border-radius:8px;
+            font-size:clamp(15px,3vw,16px);
+            font-weight:600;
+            cursor:pointer;
+            transition:opacity 0.2s,transform 0.1s;
+            min-height:clamp(40px,7vh,48px);
+            -webkit-tap-highlight-color:transparent;
+            margin-top:clamp(4px,1vh,8px);
+        }
+        .btn-login:active{transform:scale(0.97)}
+        .btn-login:hover:not(:disabled){opacity:0.9}
+        .btn-login:disabled{opacity:0.55;cursor:not-allowed;transform:none}
+        /* 加载 */
+        .loading-row{
+            display:none;
+            align-items:center;
+            justify-content:center;
+            gap:10px;
+            margin-top:clamp(8px,1.5vh,14px);
+            font-size:clamp(12px,2.5vw,14px);
+            color:#888;
+        }
+        .loading-row.show{display:flex}
+        .spinner-sm{
+            width:20px;height:20px;
+            border:2.5px solid #e0e0e0;
+            border-top:2.5px solid #667eea;
+            border-radius:50%;
+            animation:spin 0.7s linear infinite;
+        }
+        @keyframes spin{to{transform:rotate(360deg)}}
+        /* 底部 */
+        .card-footer{
+            text-align:center;
+            font-size:clamp(10px,2vw,12px);
+            color:#aaa;
+        }
+        cap-widget{--cap-widget-width:100%}
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            min-height: 100vh;
-            min-height: 100dvh;
-            display: flex;
-            justify-content: center;
-            padding: clamp(12px, 3vw, 20px);
-            position: relative;
-            overflow-y: auto;
-            overflow-x: hidden;
-            -webkit-overflow-scrolling: touch;
+        /* ====== 窄屏 ====== */
+        @media (max-width:319px){
+            .card{padding:14px;gap:8px;border-radius:8px}
+            .card-header h1{font-size:16px}
+            .form-group input{padding:8px 10px}
+            .btn-login{min-height:36px;font-size:14px;padding:8px}
         }
-
-        /* 背景图容器 */
-        .background-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            height: 100svh;
-            z-index: -2;
+        /* ====== 矮屏 ====== */
+        @media (max-height:399px){
+            #container{padding:4px 8px}
+            .card{padding:10px 14px;gap:6px;border-radius:8px}
+            .card-header h1{font-size:14px}
+            .card-header p{font-size:10px;margin-top:1px}
+            .form-group{margin-bottom:5px}
+            .form-group label{font-size:11px;margin-bottom:1px}
+            .form-group input{padding:5px 8px;font-size:16px}
+            .btn-login{min-height:28px;font-size:13px;padding:5px}
+            .alert{padding:5px 8px;font-size:10px}
+            .card-footer{font-size:9px}
         }
-
-        .background-image {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            opacity: 0;
-            transition: opacity 0.5s ease-in-out;
+        /* ====== 横屏 ====== */
+        @media (max-width:600px) and (orientation:landscape){
+            .card{max-width:500px;padding:14px 18px;gap:8px}
+            .card-header{margin-bottom:0}
+            .card-header h1{font-size:clamp(15px,3vw,20px)}
+            .form-group{margin-bottom:6px}
         }
-
-        .background-image.active {
-            opacity: 1;
-        }
-
-        .background-image.landscape {
-            background-image: url('/static/images/134223637.webp');
-        }
-
-        .background-image.portrait {
-            background-image: url('/static/images/132984565.webp');
-        }
-
-        /* 渐变遮罩层 */
-        .background-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.8) 0%, rgba(118, 75, 162, 0.8) 100%);
-            z-index: -1;
-        }
-
-        .login-container {
-            position: relative;
-            width: 100%;
-            max-width: 420px;
-            padding: clamp(20px, 5vw, 40px);
-            border-radius: 12px;
-            overflow: hidden;
-            /* margin:auto 实现安全居中 — 空间足够时居中，溢出时可滚到顶部 */
-            margin: auto 0;
-
-            /* 亚克力核心 */
-            -webkit-backdrop-filter: blur(20px) saturate(180%);
-            backdrop-filter: blur(20px) saturate(180%);
-            background-color: rgba(255, 255, 255, 0.55);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-        }
-
-        /* 两层额外渐变：底层暗面 + 上层亮面 */
-        .login-container::before,
-        .login-container::after {
-            content: "";
-            position: absolute;
-            inset: 0;
-            pointer-events: none;
-            border-radius: inherit;
-        }
-        .login-container::before {
-            background: linear-gradient(135deg,
-                        rgba(0, 0, 0, 0.03) 0%,
-                        rgba(0, 0, 0, 0.08) 100%);
-        }
-        .login-container::after {
-            background: linear-gradient(45deg,
-                        rgba(255, 255, 255, 0.15) 0%,
-                        rgba(255, 255, 255, 0.05) 100%);
-        }
-
-        /* 移除 mix-blend-mode:overlay — 在某些小屏幕浏览器上会导致渲染问题 */
-        .login-container {
-            mix-blend-mode: normal;
-        }
-
-        .login-header {
-            text-align: center;
-            margin-bottom: clamp(16px, 3vh, 30px);
-        }
-
-        .login-header h1 {
-            color: #333;
-            font-size: clamp(18px, 4vw, 24px);
-            margin-bottom: clamp(4px, 1vh, 10px);
-        }
-
-        .login-header p {
-            color: #666;
-            font-size: clamp(12px, 2.5vw, 14px);
-        }
-
-        .form-group {
-            margin-bottom: clamp(12px, 2.5vh, 20px);
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: clamp(3px, 0.8vh, 5px);
-            color: #333;
-            font-weight: 500;
-            font-size: clamp(13px, 2.8vw, 15px);
-        }
-
-        .form-group input {
-            width: 100%;
-            padding: clamp(10px, 2vw, 12px);
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: clamp(14px, 3vw, 16px);
-            /* 确保 iOS 不自动缩放输入框 */
-            font-size: max(16px, clamp(14px, 3vw, 16px));
-            transition: border-color 0.3s;
-            background: rgba(255,255,255,0.7);
-        }
-
-        .form-group input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .form-group.error input {
-            border-color: #e74c3c;
-        }
-
-        .error-message {
-            color: #e74c3c;
-            font-size: clamp(11px, 2.2vw, 14px);
-            margin-top: 4px;
-            display: none;
-        }
-
-        .form-group.error .error-message {
-            display: block;
-        }
-
-        .login-button {
-            width: 100%;
-            padding: clamp(10px, 2vw, 12px);
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: clamp(15px, 3vw, 16px);
-            font-weight: 600;
-            cursor: pointer;
-            transition: opacity 0.3s, transform 0.1s;
-            min-height: clamp(40px, 7vh, 48px);
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        .login-button:active {
-            transform: scale(0.97);
-        }
-
-        .login-button:hover:not(:disabled) {
-            opacity: 0.9;
-        }
-
-        .login-button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        .loading {
-            display: none;
-            text-align: center;
-            margin-top: clamp(12px, 2vh, 20px);
-        }
-
-        .loading.active {
-            display: block;
-        }
-
-        .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            width: clamp(24px, 5vw, 30px);
-            height: clamp(24px, 5vw, 30px);
-            animation: spin 1s linear infinite;
-            margin: 0 auto clamp(6px, 1vh, 10px);
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .footer {
-            text-align: center;
-            margin-top: clamp(12px, 2vh, 20px);
-            color: #666;
-            font-size: clamp(10px, 2vw, 12px);
-            line-height: 1.5;
-        }
-
-        cap-widget {
-            --cap-widget-width: 100%;
-        }
-
-        /* ========== 极小屏幕 (< 320 CSS px) ========== */
-        @media (max-width: 319px) {
-            .login-container {
-                padding: 14px;
-                border-radius: 8px;
-            }
-            .login-header h1 {
-                font-size: 16px;
-            }
-            .form-group input {
-                padding: 8px 10px;
-                font-size: 16px; /* 防止 iOS 缩放 */
-            }
-            .login-button {
-                min-height: 36px;
-                font-size: 14px;
-                padding: 8px;
-            }
-        }
-
-        /* ========== 横屏小屏幕 ========== */
-        @media (max-width: 600px) and (orientation: landscape) {
-            body {
-                padding: 8px;
-            }
-            .login-container {
-                padding: 16px 20px;
-                max-width: 500px;
-                display: flex;
-                flex-wrap: wrap;
-                align-items: center;
-                gap: 8px 20px;
-            }
-            .login-header {
-                flex: 1 1 100%;
-                margin-bottom: 8px;
-            }
-            .login-header h1 {
-                font-size: clamp(16px, 3vw, 20px);
-                margin-bottom: 2px;
-            }
-            .form-group {
-                flex: 1 1 40%;
-                margin-bottom: 8px;
-            }
-            .login-button {
-                flex: 0 0 auto;
-                min-width: 100px;
-                margin-top: 0;
-            }
-            .footer {
-                flex: 1 1 100%;
-                margin-top: 6px;
-            }
-        }
-
-        /* ========== 大屏幕优化 (> 768 CSS px) ========== */
-        @media (min-width: 769px) {
-            .login-container {
-                padding: 40px;
-            }
-        }
-
-        /* ========== 矮屏 (< 400 CSS px 高) ========== */
-        @media (max-height: 399px) {
-            body {
-                padding: 6px 10px;
-            }
-            .login-container {
-                padding: 10px 14px;
-                border-radius: 8px;
-            }
-            .login-header {
-                margin-bottom: 6px;
-            }
-            .login-header h1 {
-                font-size: clamp(14px, 3vw, 18px);
-                margin-bottom: 2px;
-            }
-            .form-group {
-                margin-bottom: 6px;
-            }
-            .form-group label {
-                font-size: 12px;
-                margin-bottom: 2px;
-            }
-            .form-group input {
-                padding: 6px 10px;
-                font-size: 16px;
-            }
-            .login-button {
-                min-height: 32px;
-                font-size: 14px;
-                padding: 6px;
-            }
-            .footer {
-                margin-top: 6px;
-                font-size: 10px;
-            }
-            .loading {
-                margin-top: 6px;
-            }
+        /* ====== 大屏 ====== */
+        @media (min-width:769px){
+            .card{padding:40px}
         }
     </style>
 </head>
 <body>
-    <div class="background-container">
-        <div class="background-image landscape"></div>
-        <div class="background-image portrait"></div>
-        <div class="background-overlay"></div>
-    </div>
 
-    <div class="login-container">
-        <div class="login-header">
-            <h1>Mai QRCode Getter</h1>
+<div id="container">
+    <div class="card">
+        <div class="card-header">
+            <h1>MaiQR</h1>
+            <p>舞萌二维码获取工具</p>
         </div>
 
         <form id="loginForm">
+            <!-- 全局错误信息 -->
+            <div id="alertError" class="alert alert-error"></div>
+
             <div class="form-group">
                 <label for="username">用户名</label>
                 <input type="text" id="username" name="username" required autocomplete="username" inputmode="text" enterkeyhint="next">
-                <div class="error-message">请输入用户名</div>
+                <div class="field-error">请输入用户名</div>
             </div>
 
             <div class="form-group">
                 <label for="password">密码</label>
                 <input type="password" id="password" name="password" required autocomplete="current-password" inputmode="text" enterkeyhint="go">
-                <div class="error-message">请输入密码</div>
+                <div class="field-error">请输入密码</div>
             </div>
 
             <!-- cap-widget -->
 
-            <button type="submit" class="login-button" id="loginButton">登录</button>
+            <button type="submit" class="btn-login" id="loginButton">登录</button>
 
-            <div class="loading">
-                <div class="spinner"></div>
-                <p>正在登录...</p>
+            <div class="loading-row" id="loadingRow">
+                <div class="spinner-sm"></div>
+                <span>正在登录...</span>
             </div>
         </form>
 
-        <div class="footer">
-            <p>Mai QRCode Getter v1.0</p>
-            <p>Background Image by <a href="https://www.pixiv.net/users/27236214">青葉もち</a></p>
-        </div>
+        <div class="card-footer">MaiQR v1.0</div>
     </div>
+</div>
 
-    <script>
-        window.CAP_CUSTOM_WASM_URL = "https://cdn.iocdn.cc/npm/@cap.js/wasm@0.0.4/browser/cap_wasm.min.js";
-        let cap_token = "";
-        const cap_widget = document.querySelector("#cap");
+<script>
+    window.CAP_CUSTOM_WASM_URL = "https://cdn.iocdn.cc/npm/@cap.js/wasm@0.0.4/browser/cap_wasm.min.js";
+    var cap_token = "";
+    var cap_widget = document.querySelector("#cap");
+    var loginBtn = document.getElementById("loginButton");
+    var alertEl  = document.getElementById("alertError");
+    var loadingRow = document.getElementById("loadingRow");
 
-        if (cap_widget) {
-            let loginBtn = document.getElementById("loginButton");
+    if (cap_widget) {
+        loginBtn.disabled = true;
+        loginBtn.innerText = '请先完成验证码';
+        cap_widget.addEventListener("solve", function(e) {
+            cap_token = e.detail.token;
+            loginBtn.disabled = false;
+            loginBtn.innerText = '登录';
+        });
+        cap_widget.addEventListener("error", function() {
             loginBtn.disabled = true;
-            loginBtn.innerText = '请先完成验证码';
-            cap_widget.addEventListener("solve", async function (e) {
-                cap_token = e.detail.token;
-                loginBtn.disabled = false;
-                loginBtn.innerText = '登录';
+            loginBtn.innerText = '验证失败，请重试';
+            setTimeout(function() {
+                cap_widget.reset();
+                loginBtn.innerText = '请先完成验证码';
+            }, 2000);
+        });
+    }
+
+    function showError(msg) {
+        alertEl.textContent = msg;
+        alertEl.classList.add('show');
+    }
+    function hideError() {
+        alertEl.classList.remove('show');
+    }
+
+    async function getFingerprint() {
+        var result = await FingerprintJS.load();
+        var visitorId = await result.get();
+        return visitorId.visitorId;
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        hideError();
+
+        var username = document.getElementById('username').value.trim();
+        var password = document.getElementById('password').value.trim();
+        var groups = document.querySelectorAll('.form-group');
+
+        groups.forEach(function(g){ g.classList.remove('error'); });
+
+        var hasError = false;
+        if (!username) {
+            document.querySelector('.form-group:nth-child(2)').classList.add('error');
+            hasError = true;
+        }
+        if (!password) {
+            document.querySelector('.form-group:nth-child(3)').classList.add('error');
+            hasError = true;
+        }
+        if (hasError) return;
+
+        loadingRow.classList.add('show');
+        loginBtn.disabled = true;
+
+        try {
+            var formData = new FormData();
+            formData.append('username', username);
+            formData.append('password', password);
+            formData.append('fp', await getFingerprint());
+            if (cap_token) formData.append('token', cap_token);
+
+            var resp = await fetch(window.location.pathname, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
             });
-            cap_widget.addEventListener("error", async function (e) {
-                loginBtn.disabled = true;
-                loginBtn.innerText = '验证失败，请重试';
-                setTimeout(() => {
+
+            var data = await resp.json();
+
+            if (data.success) {
+                loginBtn.innerText = '登录成功，正在跳转...';
+                window.location.href = data.redirect || '/';
+            } else {
+                showError(data.error || '登录失败，请检查用户名和密码');
+                if (cap_widget) {
                     cap_widget.reset();
+                    loginBtn.disabled = true;
                     loginBtn.innerText = '请先完成验证码';
-                }, 2000)
-            });
-        }
-
-        async function getFingerprint() {
-            const result = await FingerprintJS.load();
-            const visitorId = await result.get();
-            return visitorId.visitorId
-        }
-
-        document.getElementById('loginForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value.trim();
-            const formGroups = document.querySelectorAll('.form-group');
-            const loading = document.querySelector('.loading');
-            const loginButton = document.querySelector('.login-button');
-
-            // 清除之前的错误状态
-            formGroups.forEach(group => group.classList.remove('error'));
-
-            let hasError = false;
-
-            if (!username) {
-                document.querySelector('.form-group:nth-child(1)').classList.add('error');
-                hasError = true;
-            }
-
-            if (!password) {
-                document.querySelector('.form-group:nth-child(2)').classList.add('error');
-                hasError = true;
-            }
-
-            if (hasError) return;
-
-            // 显示加载状态
-            loading.classList.add('active');
-            loginButton.disabled = true;
-
-            try {
-                const formData = new FormData();
-                formData.append('username', username);
-                formData.append('password', password);
-                formData.append('fp', await getFingerprint());
-                if (cap_token) {
-                    formData.append('token', cap_token);
-                }
-
-                const response = await fetch(window.location.pathname, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json'
-                    }
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    loginButton.innerText = '登录成功，正在跳转...';
-                    setTimeout(() => {
-                        loginButton.disabled = true;
-                    }, 50);
-                    setTimeout(() => {
-                        loginButton.disabled = false;
-                        loginButton.innerText = '登录';
-                    }, 5000);
-                    window.location.href = data.redirect || '/';
-                } else {
-                    Swal.fire({
-                        title: "登录失败",
-                        text: data.error || '未知错误',
-                        icon: "error",
-                        timer: 2000,
-                        timerProgressBar: true,
-                        showConfirmButton: true
-                    });
-                    if (cap_widget) {
-                        loginButton.disabled = true;
-                        loginButton.innerText = "请先完成验证码";
-                    }
-                }
-            } catch (error) {
-                Swal.fire({
-                    title: "网络错误，请重试",
-                    text: error.message || '未知错误',
-                    icon: "error",
-                    timer: 2000,
-                    timerProgressBar: true,
-                    showConfirmButton: true
-                });
-                if (cap_widget) {
-                    loginButton.disabled = true;
-                    loginButton.innerText = "请先完成验证码";
-                }
-            } finally {
-                loading.classList.remove('active');
-                loginButton.disabled = false;
-                if (cap_widget) {
-                    cap_widget.reset();
-                    loginButton.disabled = true;
                     cap_token = "";
                 }
             }
-        });
-
-        // 回车键提交
-        document.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+        } catch (err) {
+            showError('网络错误，请检查连接后重试');
+            if (cap_widget) {
+                cap_widget.reset();
+                loginBtn.disabled = true;
+                loginBtn.innerText = '请先完成验证码';
+                cap_token = "";
             }
-        });
-    </script>
-
-    <script>
-        // 背景图切换功能
-        function updateBackgroundImage() {
-            const landscapeImg = document.querySelector('.background-image.landscape');
-            const portraitImg = document.querySelector('.background-image.portrait');
-            const windowRatio = window.innerWidth / window.innerHeight;
-
-            // 如果宽高比大于1.2，认为是横屏，否则是竖屏
-            if (windowRatio > 1.2) {
-                landscapeImg.classList.add('active');
-                portraitImg.classList.remove('active');
-            } else {
-                portraitImg.classList.add('active');
-                landscapeImg.classList.remove('active');
-            }
+        } finally {
+            loadingRow.classList.remove('show');
+            if (!cap_widget) loginBtn.disabled = false;
         }
+    });
 
-        // 初始化背景图
-        updateBackgroundImage();
+    document.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+        }
+    });
 
-        // 监听窗口大小变化
-        window.addEventListener('resize', updateBackgroundImage);
+    // ====== Service Worker ======
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function(){});
+    }
+</script>
 
-        // 监听设备方向变化（移动设备）
-        window.addEventListener('orientationchange', () => {
-            setTimeout(updateBackgroundImage, 100);
-        });
-    </script>
 </body>
 </html>

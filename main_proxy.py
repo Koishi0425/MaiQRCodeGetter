@@ -58,7 +58,7 @@ else:
 
 CACHE_QRCODE: bytes = b""
 STATIC_DIR = PROJECT_ROOT / "static"
-ALLOW_EXT = {'.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.svg', '.html', '.webp', '.avif'}
+ALLOW_EXT = {'.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.svg', '.html', '.webp', '.avif', '.json'}
 
 # ---------- Win32 常量 ----------
 SW_RESTORE = 9  # 从最小化还原
@@ -290,8 +290,8 @@ def cleanup_expired_sessions():
 
 async def auth_middleware(_, handler):
     async def middleware_handler(request):
-        # 允许访问登录页面和静态资源
-        if request.path in [entryPoint, '/204'] or request.path.startswith('/static/'):
+        # 允许访问登录页面、静态资源和 PWA 文件
+        if request.path in [entryPoint, '/204', '/manifest.json', '/sw.js'] or request.path.startswith('/static/'):
             return await handler(request)
 
         session_token = request.cookies.get('session_token')
@@ -703,6 +703,11 @@ async def web_server():
     app.router.add_get('/204', handle_204)
     app.router.add_get('/', htmlPage)
     app.router.add_post('/', handlePostRoot)
+    # PWA 支持：manifest 和 service worker 必须在根路径
+    async def serve_manifest(_): return web.FileResponse(STATIC_DIR / 'manifest.json')
+    async def serve_sw(_): return web.FileResponse(STATIC_DIR / 'sw.js')
+    app.router.add_get('/manifest.json', serve_manifest)
+    app.router.add_get('/sw.js', serve_sw)
     app.router.add_get('/static/{filepath:.*}', static_handler, name='static')
     runner = web.AppRunner(app)
     await runner.setup()

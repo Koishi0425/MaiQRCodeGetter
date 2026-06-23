@@ -32,16 +32,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 两个文件共享约 70% 的代码：认证系统、限流、配置管理、会话管理、Web 路由、Win32 工具函数完全相同。这是已知的技术债务，重构时应将共享逻辑提取到公共模块。
 
 ### Web 层 (aiohttp)
-两种模式共用几乎相同的 aiohttp Web 服务，路由注册在 `web_server()` 中：
+两种模式共用几乎相同的 aiohttp Web 服务，路由注册在 `web_server()` 中。
+
+**重要架构变更**：`htmlPage` (GET `/`) 和 `QRCodePage` (GET `/qrc`) **不再同步调用 `main()`** 获取二维码。它们只返回 `qrcode.html` 静态壳，前端通过 AJAX 调用 `/maimai` JSON API 获取二维码数据。这样：
+- 页面瞬间加载（无 10+ 秒阻塞等待）
+- 加载/成功/失败三种状态在前端统一展示，风格一致
+- 错误不再跳转到 `traceback.html`（动漫背景页）
 
 | 路由 | 方法 | 功能 |
 |------|------|------|
 | `/{entryPoint}` (默认 `/login`) | GET | 登录页面 |
 | `/{entryPoint}` | POST | 登录处理 (含 CapJS 验证 + 指纹限流) |
-| `/` | GET | 主页 — 纯二维码展示页（与 `/qrc` 相同） |
+| `/` | GET | 二维码展示页壳 — 前端 AJAX 调 `/maimai` 获取数据 |
 | `/` | POST | 未认证则重定向登录页 |
-| `/qrc` 或 `/qrcode` | GET | 纯二维码展示页 |
-| `/maimai` | GET | JSON API — 返回 `{success, maid, time, spend}` |
+| `/qrc` 或 `/qrcode` | GET | 同 `/` |
+| `/maimai` | GET | **核心 JSON API** — 调用 `main()` 获取二维码，返回 `{success, maid, time, spend}` 或 `{success:false, error}` |
 | `/logout` | GET | 单设备登出 |
 | `/logout_all` | GET | 清除全部会话 |
 | `/204` | GET | 空响应 (用于连通性检查/Nginx 前置) |
@@ -65,14 +70,32 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 用户需复制 `config.example.ini` 为 `config.ini` 并编辑配置项。程序启动时若未找到 `config.ini` 会打印错误提示并退出。支持的配置项：`entryPoint`, `loginUserName`, `loginPassword`, `port`, `waitTime`, `minimize_after_success`, `capjs_endpoint`, `mode`, `certfile`, `keyfile`。代理模式额外增加 `proxyPort`。
 
 ### 前端页面
-- **`login.html`**: 亚克力风格登录页，集成 FingerprintJS + SweetAlert2 + 可选 CapJS widget，自适应横竖屏背景图
-- **`qrcode.html`**: 纯二维码展示页（canvas 渲染 + 过期时间 + 获取耗时 + 登出/刷新链接），模板占位符 `{maid_code}`, `{exp_time}`, `{spend_time}`
-- **`traceback.html`**: 异常堆栈展示页，使用 Prism.js 语法高亮
+
+#### `qrcode.html` — SPA 单页面应用（加载 / 成功 / 失败三态统一）
+页面加载后通过 AJAX 调用 `/maimai` JSON API 获取二维码，**不再由后端模板替换占位符**。三种状态在同一简洁白底页面切换：
+- **加载态**: CSS 旋转 spinner + 实时等待秒数计时器
+- **成功态**: QR 码 canvas + 机台提示 + 耗时 + 有效期 + 「退出登录」「刷新二维码」按钮
+- **错误态**: ⚠ 图标 + 错误详情（含 `max-height` + 内部滚动，防止长文本撑出视口）+ 「退出登录」「重试」按钮
+
+关键 CSS 约束模式：QR 码用 CSS 自定义属性 `--qr-cap` 同时约束 `max-width` 和 `max-height`，**必须同一值**，否则 canvas 正方形会被压扁。
+
+页面针对极小屏幕做了多层适配：
+- 基础版用 `clamp()` 做弹性字号/间距
+- `@media (max-height:399px)` 矮屏适配（最关键 — 收紧所有间距、缩小 QR 上限、按钮最小高度降至 28px）
+- `@media (max-width:319px)` 极窄屏适配
+- 横屏时卡片内元素横向排列
+- 容器用 `margin:auto` 在子元素上实现安全居中（避免 `align-items:center` + `overflow:auto` 导致顶部内容被截断的经典 Flexbox bug）
+
+#### `login.html` — 亚克力风格登录页
+集成 FingerprintJS + SweetAlert2 + 可选 CapJS widget。自适应横竖屏背景图（引用 `static/images/` 下两张 webp）。同样做了矮屏/窄屏/横屏适配和 `margin:auto` 安全居中。
+
+#### `traceback.html` — 已废弃
+异常堆栈展示页（Prism.js 语法高亮 + 动漫背景）。**后端路由已不再使用此文件**（`htmlPage` / `QRCodePage` 不再 fallback 到它），保留在磁盘上仅为历史遗留。
 
 # ✅ 已完成的清理 (Completed Cleanup)
 - **`dxpass` 及 `UsagiPass` UI**: 已删除 `main.html`（iframe 页面）、`forbidden.html`；`/` 路由已重构为纯二维码展示页
 - **配置文件清理**: 已从 config 生成/读取逻辑中删除 `dxpass_url` 配置项
-- **路由精简**: `/` 和 `/qrc` 路由现在使用相同的 `qrcode.html` 模板，直接传入 maid 码
+- **路由精简**: `/` 和 `/qrc` 路由返回相同的 `qrcode.html` 壳，前端通过 `/maimai` API 获取数据
 
 # 💡 需要强化与保留的核心
 - **获取稳定性**: 优化微信窗口唤醒、截图 OCR 解析、代理抓包容错。增加详细 try-except 和日志
@@ -82,6 +105,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # 🛠 编码规范
 - **环境**: Python 3.12+，新增/修改的函数必须有类型提示 (Type Hints)
 - **模块化解耦**: 将 `main.py` 和 `main_proxy.py` 的共享代码（认证、限流、配置、Web路由）提取到公共模块，消除 ~70% 的代码重复
-- **HTML**: 使用最简洁的原生 HTML/CSS/JS，不引入臃肿第三方前端资源
+- **HTML/CSS**: 使用最简洁的原生 HTML/CSS/JS，不引入臃肿第三方前端资源。页面必须适配 160~750 CSS px 宽、128~1000 CSS px 高的范围。遵循以下模式：
+  - 字号/间距用 `clamp(最小值, 首选值, 最大值)`，不用固定 px
+  - 必须写 `@media (max-height:399px)` 矮屏适配，收紧所有间距
+  - 滚动容器禁止 `align-items:center`（溢出时顶部被截断），改用子元素 `margin:auto`
+  - QR 码 canvas 用 CSS 变量同时约束 `max-width` 和 `max-height`，确保正方形
+  - 报错文本容器必须有 `max-height` + `overflow-y:auto`，防止长错误撑出视口
 - **注释**: 保留中文注释，复杂图像处理/代理回调必须加清晰逻辑说明
 - **Win32 注意**: 截屏逻辑依赖 Windows API（user32/gdi32/kernel32）、`uiautomation`、微信客户端窗口，仅在 Windows 平台可用
